@@ -17,67 +17,105 @@
 
 class query_popup_impl : public cataimgui::window
 {
-        short mouse_selected_option;
-        size_t msg_width;
-        nc_color default_text_color;
-        query_popup *parent;
-        short last_keyboard_selected_option;
+    short mouse_selected_option;
+    size_t msg_width;
+    nc_color default_text_color;
+    query_popup *parent;
+    short last_keyboard_selected_option;
 
-        std::vector<std::vector<std::string>> fold_query(
-                                               const std::string &category,
-                                               keyboard_mode pref_kbd_mode,
-                                               const std::vector<query_popup::query_option> &options,
-                                               int max_width, int horz_padding );
-    public:
-        short keyboard_selected_option;
+    std::vector<std::vector<std::string>> fold_query(
+        const std::string &category,
+        keyboard_mode pref_kbd_mode,
+        const std::vector<query_popup::query_option> &options,
+        int max_width, int horz_padding );
+public:
+    short keyboard_selected_option;
 
-        explicit query_popup_impl( query_popup *parent ) : cataimgui::window( "QUERY_POPUP",
-                    ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_AlwaysAutoResize ),
-            default_text_color( c_white ) {
-            msg_width = 400;
-            this->parent = parent;
-            keyboard_selected_option = 0;
-            last_keyboard_selected_option = -1;
-            mouse_selected_option = -1;
-        }
+    explicit query_popup_impl( query_popup *parent ) : cataimgui::window( "QUERY_POPUP",
+                ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_AlwaysAutoResize ),
+        default_text_color( c_white ) {
+        msg_width = 400;
+        this->parent = parent;
+        keyboard_selected_option = 0;
+        last_keyboard_selected_option = -1;
+        mouse_selected_option = -1;
+    }
 
-        void on_resized() override;
+    void on_resized() override;
 
-        int get_mouse_selected_option() const {
-            return mouse_selected_option;
-        }
-    protected:
-        void draw_controls() override;
-        cataimgui::bounds get_bounds() override {
-            return { -1.f, parent->ontop ? 0 : -1.f, -1.f, -1.f};
-        }
+    int get_mouse_selected_option() const {
+        return mouse_selected_option;
+    }
+protected:
+    void draw_controls() override;
+    cataimgui::bounds get_bounds() override {
+        return { -1.f, parent->ontop ? 0 : -1.f, -1.f, -1.f};
+    }
 };
 
 void query_popup_impl::draw_controls()
 {
+    size_t max_msg_len{};
+    for(auto &line: parent->folded_msg){
+        if(max_msg_len<line.size()){
+            max_msg_len = line.size();
+        }
+    }
+    std::string header_line{};
+    ImGui::SetCursorPos({0,0});
+    header_line.append("┌");
+    for(size_t i=0;i<max_msg_len+1;++i){
+        header_line.append("─");
+    }
+    header_line.append("┐");
+    header_line.push_back(' ');
+    ImGui::TextUnformatted(header_line.c_str());
+    ImGui::SetCursorPos({1,1});
+
     mouse_selected_option = -1;
 
     for( const std::string &line : parent->folded_msg ) {
         cataimgui::draw_colored_text( line, parent->default_text_color );
     }
 
-    if( !parent->buttons.empty() ) {
+    if(!parent->buttons.empty() ) {
         int current_line = 0;
         for( size_t ind = 0; ind < parent->buttons.size(); ++ind ) {
             if( ind != 0 && current_line == parent->buttons[ind].pos.y ) {
                 ImGui::SameLine();
             }
             ImGui::SetCursorPosX( float( parent->buttons[ind].pos.x ) );
+            ImGuiStyle& style = ImGui::GetStyle();
+            ImVec4 backgroundColor = style.Colors[ImGuiCol_WindowBg];
+            ImGui::PushStyleColor(ImGuiCol_Button, backgroundColor);
             ImGui::Button( remove_color_tags( parent->buttons[ind].text ).c_str() );
+            ImGui::PopStyleColor();
             if( ImGui::IsItemHovered() ) {
                 mouse_selected_option = ind;
             }
             if( keyboard_selected_option != last_keyboard_selected_option &&
-                keyboard_selected_option == short( ind ) && ImGui::IsWindowFocused() ) {
-                ImGui::SetKeyboardFocusHere( -1 );
+                    keyboard_selected_option == short( ind ) && ImGui::IsWindowFocused() ) {
+                ImGui::SetKeyboardFocusHere(-1 );
             }
             current_line = parent->buttons[ind].pos.y;
         }
+    }
+    std::string bottom_line{};
+    bottom_line.append("└");
+    for(size_t i=0;i<max_msg_len+1;++i){
+        bottom_line.append("─");
+    }
+    bottom_line.append("┘");
+    bottom_line.push_back(' ');
+    ImGui::TextUnformatted(bottom_line.c_str());
+    int max_line = ImGui::GetCursorPosY();
+    for(int i=1;i<max_line-1;++i){
+        ImVec2 _p{0,static_cast<float>(i)};
+        ImGui::SetCursorPos(_p);
+        ImGui::Text("│");
+        ImGui::SameLine();
+        ImGui::SetCursorPosX(max_msg_len+2);
+        ImGui::Text("│ ");
     }
 }
 
@@ -107,7 +145,7 @@ void query_popup_impl::on_resized()
     };
     // Calculate width with query buttons
     for( const auto &line : folded_query ) {
-        if( !line.empty() ) {
+        if(!line.empty() ) {
             int button_width = 0;
             for( const auto &opt : line ) {
                 button_width += get_text_width( remove_color_tags( opt ) );
@@ -121,9 +159,9 @@ void query_popup_impl::on_resized()
     // Calculate height with query buttons & button positions
     parent->buttons.clear();
     size_t line_idx = 0;
-    if( !folded_query.empty() ) {
+    if(!folded_query.empty() ) {
         for( const auto &line : folded_query ) {
-            if( !line.empty() ) {
+            if(!line.empty() ) {
                 int button_width = 0;
                 for( const auto &opt : line ) {
                     button_width += get_text_width( remove_color_tags( opt ) );
@@ -166,7 +204,7 @@ query_popup &query_popup::option( const std::string &opt )
 }
 
 query_popup &query_popup::option( const std::string &opt,
-                                  const std::function<bool( const input_event & )> &filter )
+                                  const std::function<bool(const input_event & )> &filter )
 {
     invalidate_ui();
     options.emplace_back( opt, filter );
@@ -226,10 +264,10 @@ query_popup &query_popup::preferred_keyboard_mode( const keyboard_mode mode )
 }
 
 std::vector<std::vector<std::string>> query_popup_impl::fold_query(
-                                       const std::string &category,
-                                       const keyboard_mode pref_kbd_mode,
-                                       const std::vector<query_popup::query_option> &options,
-                                       const int max_width, const int horz_padding )
+    const std::string &category,
+    const keyboard_mode pref_kbd_mode,
+    const std::vector<query_popup::query_option> &options,
+    const int max_width, const int horz_padding )
 {
     input_context ctxt( category, pref_kbd_mode );
 
@@ -281,7 +319,7 @@ void query_popup::invalidate_ui() const
 query_popup::result query_popup::query_once()
 {
 
-    if( !anykey && !cancel && options.empty() ) {
+    if(!anykey && !cancel && options.empty() ) {
         return { false, "ERROR", {} };
     }
 
@@ -298,7 +336,7 @@ query_popup::result query_popup::query_once()
     if( cancel || !options.empty() ) {
         ctxt.register_action( "HELP_KEYBINDINGS" );
     }
-    if( !options.empty() ) {
+    if(!options.empty() ) {
         ctxt.register_action( "CONFIRM" );
         for( const query_popup::query_option &opt : options ) {
             ctxt.register_action( opt.action );
@@ -327,7 +365,7 @@ query_popup::result query_popup::query_once()
         res.evt = ctxt.get_raw_input();
 
         // If we're tracking mouse movement
-        if( !options.empty() && res.action == "SELECT" && impl->get_mouse_selected_option() != -1 ) {
+        if(!options.empty() && res.action == "SELECT" && impl->get_mouse_selected_option() != -1 ) {
             // Left-click to confirm selection
             res.action = "CONFIRM";
             cur = size_t( impl->get_mouse_selected_option() );
@@ -387,7 +425,7 @@ query_popup::result query_popup::query_once()
 std::shared_ptr<query_popup_impl> query_popup::create_or_get_impl()
 {
     std::shared_ptr<query_popup_impl> impl = p_impl.lock();
-    if( !impl ) {
+    if(!impl ) {
         p_impl = impl = std::make_shared<query_popup_impl>( this );
         if( impl ) {
             impl->mark_resized();
@@ -432,7 +470,7 @@ query_popup::result::result( bool wait_input, const std::string &action, const i
 
 query_popup::query_option::query_option(
     const std::string &action,
-    const std::function<bool( const input_event & )> &filter )
+    const std::function<bool(const input_event & )> &filter )
     : action( action ), filter( filter )
 {
 }
